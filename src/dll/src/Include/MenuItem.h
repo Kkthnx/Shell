@@ -221,6 +221,9 @@ namespace Nilesoft
 			int separator{};
 			int tab = -1;
 			int column = 0;
+			// Drawn in bold. Kept apart from MFS_DEFAULT so the native menu's
+			// default item, and anything that queries it, is left unchanged.
+			bool is_default{};
 			SIZE size = { -1,-1 };
 			bool is_system{};
 			struct MUID *ui{};

@@ -493,10 +493,12 @@ namespace Nilesoft
 							mii->privileges = _context.parse_privileges(item->cmd);
 
 						int checked = 0;
+						mii->is_default = false;
 
 						if(item->is_item())
 						{
 							checked = _context.eval_number<int>(item->checked, 0);
+							mii->is_default = _context.eval_number<int>(item->is_default, 0) > 0;
 							if(_settings.new_items.keys)
 								_context.Eval(item->keys, mii->keys);
 						}
@@ -713,6 +715,9 @@ namespace Nilesoft
 						}
 					}
 				}
+
+				if(item->type == 0 && si->is_default)
+					mii->is_default = _context.eval_number<int>(si->is_default, 0) > 0;
 
 				bool image_disabled_by_checked = mii->is_checked() && _theme.image.display == 0;
 
@@ -1012,6 +1017,9 @@ namespace Nilesoft
 					m_sub->path = path.trim(L'/').move();
 				}
 			}
+
+			// MenuItemInfo objects are cached between popups, so reset before rules apply.
+			mii->is_default = false;
 
 			for(auto si : item->native_items)
 			{
@@ -1391,8 +1399,18 @@ namespace Nilesoft
 
 			// insert items to native menu
 			int i = 0, x = 0;
+			bool has_default = false;
 			for(auto item : items)
 			{
+				// A menu has at most one default item. The first one wins.
+				if(item->is_default)
+				{
+					if(has_default || item->is_separator())
+						item->is_default = false;
+					else
+						has_default = true;
+				}
+
 				item->remove_bitmap();
 				item->add_ownerdraw();
 				item->handle = hMenu;
@@ -1431,7 +1449,15 @@ namespace Nilesoft
 							if(item->column == 1)
 								menu->draw.width = 0;
 
+							// Measure with the font the title is drawn with, or bold text clips.
+							HGDIOBJ previous_font = nullptr;
+							if(item->is_default && font.bold)
+								previous_font = ::SelectObject(dc.get(), font.bold);
+
 							dc.measure(item->title, item->title.length(), &rc, DT_NOCLIP | _theme.text.prefix);
+
+							if(previous_font)
+								::SelectObject(dc.get(), previous_font);
 
 							if(!item->keys.empty())
 							{
@@ -2459,16 +2485,18 @@ namespace Nilesoft
 					rcText.top = rc->top - dpi(1);
 					rcText.bottom = rc->bottom;
 
+					auto title_font = (mii->is_default && font.bold) ? font.bold : font.handle;
+
 					if(mii->tab <= 0 && mii->keys.empty())
 					{
-						draw_string(dc, font.handle, &rcText, clrtext, mii->title, mii->title.length<int>(), (mii->tab < 0 ? DT_LEFT : DT_RIGHT) | txtfmt);
+						draw_string(dc, title_font, &rcText, clrtext, mii->title, mii->title.length<int>(), (mii->tab < 0 ? DT_LEFT : DT_RIGHT) | txtfmt);
 					}
 					else
 					{
 						auto ds = [&](const string &left, const string &right)
 						{
 							if(!left.empty())
-								draw_string(dc, font.handle, &rcText, clrtext, left, left.length<int>(), DT_LEFT | txtfmt);
+								draw_string(dc, title_font, &rcText, clrtext, left, left.length<int>(), DT_LEFT | txtfmt);
 
 							if(!right.empty())
 							{
@@ -3881,6 +3909,12 @@ namespace Nilesoft
 
 			font.handle = ::CreateFontIndirectW(&_theme.font);
 
+			{
+				LOGFONTW lf = _theme.font;
+				lf.lfWeight = std::max<LONG>(lf.lfWeight, FW_BOLD);
+				font.bold = ::CreateFontIndirectW(&lf);
+			}
+
 			font.icon10.Name = font.icon.Name;
 			font.icon10.Size =int( _theme.image.size * 0.70);
 			font.icon10.Quality = CLEARTYPE_QUALITY;
@@ -4662,6 +4696,11 @@ namespace Nilesoft
 				if(font.handle) {
 					::DeleteObject(font.handle);
 					font.handle = nullptr;
+				}
+
+				if(font.bold) {
+					::DeleteObject(font.bold);
+					font.bold = nullptr;
 				}
 
 				if(hCursor)

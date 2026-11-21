@@ -276,6 +276,7 @@ namespace Nilesoft
 			auto_expr moveto;
 			auto_expr title;
 			auto_expr checked;
+			auto_expr is_default;
 			auto_expr column;
 			// static item property
 			auto_expr invoke;
