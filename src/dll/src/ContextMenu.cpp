@@ -191,6 +191,7 @@ namespace Nilesoft
 			_context.dpi = &dpi;
 			_context.wnd.owner = hwnd.owner;
 			_context.hMenu = hMenu;
+			_context.menu_count = MENU::get_count(hMenu);
 			_window = hwnd.owner;
 
 			_cache = Initializer::instance->cache;
@@ -4469,6 +4470,13 @@ namespace Nilesoft
 
 				if(0 == ::GetPropW(hwnd.owner, UxSubclass))
 					build_system_menuitems(_hMenu_original, __system_menu_tree, true);
+				else
+				{
+					// Windows' own items are not used for windows Shell subclasses,
+					// such as the taskbar, so this.count must not report them.
+					// The default taskbar.nss relies on this.count == 0 there.
+					_context.menu_count = 0;
+				}
 
 				if(_settings.modify_items.enabled)
 					build_main_system_menuitems(__system_menu_tree, true);
