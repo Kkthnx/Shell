@@ -1,4 +1,4 @@
-﻿menu(type="taskbar" vis=key.shift() or key.lbutton() pos=0 title=app.name image=\uE249)
+﻿menu(type="taskbar" vis=key.shift() or key.lbutton() pos=0 title=app.name image='@app.exe')
 {
 	item(title="config" image=\uE10A cmd='"@app.cfg"')
 	item(title="manager" image=\uE0F3 admin cmd='"@app.exe"')

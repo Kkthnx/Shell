@@ -699,7 +699,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE, _In_ LPWSTR,
         rc_reg.left = left;
         rc_unreg.left = rc_reg.left;
 		
-		std::string dd = "<svg viewBox='0 0 512 512' width='100%' height='100%'><path fill='#14DCFE' d='M200 100L300 0l106 106-100 100z'/><path fill='#14A0FF' d='M100 200l100-100 212 212-100 100z'/><path fill='#1465FF' d='M106 406l100-100 106 106-100 100z'/></svg>";
+		// K monogram. Same geometry as packages/assets/logo.svg.
+		std::string dd = "<svg viewBox='0 0 512 512' width='100%' height='100%'><defs><linearGradient id='sl' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='#F0F2F4'/><stop offset='1' stop-color='#C4C9CF'/></linearGradient><linearGradient id='sd' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='#A2A9B1'/><stop offset='1' stop-color='#5F656C'/></linearGradient></defs><rect x='20' y='20' width='75.5' height='472' fill='url(#sl)'/><rect x='95.5' y='20' width='75.5' height='472' fill='url(#sd)'/><path fill='#1B57C1' d='M194.75 159.75L468 433L468 454A38 38 0 0 1 430 492L359.5 492L111 243.5Z'/><path fill='#15449C' d='M278.5 243.5L294.5 259.5L210.75 343.25L194.75 327.25Z'/><path fill='#3586E9' d='M95.5 259L334.5 20L430 20A38 38 0 0 1 468 58L468 54L95.5 426.5Z'/></svg>";
 		PlutoVG pluto(dd.data(), static_cast<int>(dd.length()), dpi(96), dpi(96), 96);
 		hbitmap_logo = pluto.tobitmap();
 
