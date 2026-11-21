@@ -857,6 +857,13 @@ namespace Nilesoft
 						prop->IsDir = TRUE;
 					}*/
 				}
+				// A filesystem symlink to a file reports SFGAO_LINK without
+				// SFGAO_FOLDER or SFGAO_STREAM. Treat it as a file so Parse()
+				// does not discard the selection.
+				else if(prop->Link && prop->FileSystem)
+				{
+					prop->IsFile = TRUE;
+				}
 				else
 				{
 					if(!prop->PathRaw.starts_with(L"::{", 3, false))

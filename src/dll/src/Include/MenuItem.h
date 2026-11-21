@@ -221,6 +221,9 @@ namespace Nilesoft
 			int separator{};
 			int tab = -1;
 			int column = 0;
+			// Drawn in bold. Kept apart from MFS_DEFAULT so the native menu's
+			// default item, and anything that queries it, is left unchanged.
+			bool is_default{};
 			SIZE size = { -1,-1 };
 			bool is_system{};
 			struct MUID *ui{};
@@ -406,9 +409,24 @@ namespace Nilesoft
 				if(!title.empty())
 				{
 					this->title = title.move();
+					// normalize() first: it can replace the buffer when it cuts the
+					// title at a tab, which would leave dwTypeData dangling.
+					normalize();
 					this->dwTypeData = this->title.text;
 					cch = this->title.text.length<uint32_t>();
-					normalize();
+				}
+			}
+
+			// Point dwTypeData at the current title buffer before handing this item
+			// to Windows. normalize() may have replaced the buffer and shortened the
+			// text since dwTypeData was last set. Items whose text lives elsewhere
+			// leave title.text empty and are not touched.
+			void sync_text()
+			{
+				if((fMask & MIIM_STRING) && !title.text.empty())
+				{
+					dwTypeData = title.text;
+					cch = title.text.length<uint32_t>();
 				}
 			}
 
@@ -970,6 +988,7 @@ namespace Nilesoft
 
 			bool insert(MenuItemInfo *mii, uint32_t uitem, bool byPosition = true)
 			{
+				mii->sync_text();
 				if(::InsertMenuItemW(_handle, uitem, byPosition, reinterpret_cast<MENUITEMINFOW*>(mii)))
 				{
 					_count++;
@@ -1186,6 +1205,7 @@ namespace Nilesoft
 
 			static bool set(HMENU hMenu, MenuItemInfo *mii, int uitem, bool byPosition = true)
 			{
+				mii->sync_text();
 				return ::SetMenuItemInfoW(hMenu, uitem, byPosition, reinterpret_cast<MENUITEMINFOW *>(mii));
 			}
 
@@ -1238,6 +1258,7 @@ namespace Nilesoft
 
 			static bool insert(HMENU hMenu, MenuItemInfo *mii, int uitem, bool byPosition = true)
 			{
+				mii->sync_text();
 				return ::InsertMenuItemW(hMenu, uitem, byPosition, reinterpret_cast<MENUITEMINFOW *>(mii));
 			}
 

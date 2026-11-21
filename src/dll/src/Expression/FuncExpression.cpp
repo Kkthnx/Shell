@@ -2,6 +2,7 @@
 #include "Resource.h"
 #include "Expression\Constants.h"
 #include "Expression\Variable.h"
+#include "System\IO\DeleteTree.h"
 
 #include <propsys.h>
 #include <propvarutil.h>
@@ -732,6 +733,9 @@ namespace Nilesoft
 							Text::Clipboard::Empty();
 							break;
 						case IDENT_IS_EMPTY:
+							// True only when the clipboard holds nothing at all, text or not.
+							_result = ::CountClipboardFormats() == 0;
+							break;
 						case IDENT_LEN:
 						case IDENT_LENGTH:
 						{
@@ -742,11 +746,7 @@ namespace Nilesoft
 								{
 									if(auto hglb = ::GetClipboardData(CF_UNICODETEXT); hglb)
 									{
-										if(Id[1] == IDENT_IS_EMPTY)
-										{
-											_result = !hglb;
-										}
-										else if(auto lptstr = (const wchar_t *)::GlobalLock(hglb); lptstr)
+										if(auto lptstr = (const wchar_t *)::GlobalLock(hglb); lptstr)
 										{
 											_result = string::Length(lptstr);
 											//ReplaceSelection(hwndSelected, pbox, lptstr);
@@ -3699,7 +3699,12 @@ namespace Nilesoft
 				switch(Id[1])
 				{
 					case IDENT_DELETE:
-						_result = Path::Delete(arg0);
+						// io.delete(path, true) also deletes a directory's contents.
+						// Without it only files and empty directories are removed, as before.
+						if(argc > 1 && eval_arg(1).to_bool())
+							_result = IO::DeleteTree(std::wstring(arg0.c_str()));
+						else
+							_result = Path::Delete(arg0);
 						break;
 					case IDENT_COPY:
 					{
@@ -4559,9 +4564,9 @@ namespace Nilesoft
 				case IDENT_ABOUT:
 				{
 					string about;
-					about.format(L"%s\nversion %s\n%s\n© %d %s.",
+					about.format(L"%s\nversion %s (%s)\n%s\n© %d %s.",
 								 APP_COMPANY L" " APP_NAME,
-								 APP_VERSION,
+								 APP_VERSION, APP_BUILD_TAG,
 								 APP_WEBSITE,
 								 VERSION_YEAR, APP_COMPANYLTD);
 					::MessageBoxW(nullptr, about, L"About", MB_OK | MB_ICONINFORMATION);

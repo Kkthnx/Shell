@@ -1,14 +1,14 @@
 [![Ceasefire Now](https://badge.techforpalestine.org/default)](https://techforpalestine.org/learn-more)
 
 [![Build](../../actions/workflows/build.yml/badge.svg)](../../actions/workflows/build.yml)
-[![Nightly](https://img.shields.io/badge/Nightly-nightly.link-purple)](https://nightly.link/moudey/Shell/workflows/build/main)
+[![Nightly](https://img.shields.io/badge/Nightly-nightly.link-purple)](https://nightly.link/Kkthnx/Shell/workflows/build/main)
 
-# [Shell](https://nilesoft.org)
+# [Shell](https://kkthnx.com/)
 Powerful manager for Windows File Explorer context menu.
 <br>
 
 <p align="center">
- <img src="https://www.nilesoft.org/images/logo-256.png">
+ <img src="packages/assets/logo-256.png" width="128" alt="Shell logo">
  <br>
  <br>
 </p>
@@ -45,12 +45,11 @@ Documentation
 ------------------
 Browse the [online documentation here.](https://nilesoft.org/docs)
 
-[<img src="https://devin.ai/assets/deepwiki-badge.png" alt="Ask DeepWiki.com" height="20"/>](https://deepwiki.com/moudey/Shell)
 
 Download
 ------------------
 Download the latest version:  
-https://nilesoft.org/download
+https://github.com/Kkthnx/Shell/releases
 
 Screenshots
 ------------------
@@ -69,7 +68,9 @@ Donate
 ------------------
 If you really love Shell and would like to see it continue to improve.
 
-[![Paypal](https://img.shields.io/badge/Donate-PayPal-blue.svg)](https://www.paypal.me/nilesoft)
-[![BuyMeACoffee](https://img.shields.io/badge/Donate-BuyMeACoffee-yellow.svg)](https://www.buymeacoffee.com/moudey)
+- [Ko-fi](https://ko-fi.com/kkthnx)
+- [Buy Me a Coffee](https://buymeacoffee.com/kkthnx)
+- [PayPal](https://www.paypal.com/paypalme/kkthnxtv)
+- [Cash App](https://cash.app/$JERussell20) ($JERussell20)
 
 

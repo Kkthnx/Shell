@@ -24,6 +24,10 @@ namespace Nilesoft
 //#define APP_IS_CANARY			1
 //#define APP_CANARY				L"Canary"
 
+// Marks builds from this fork. APP_COMPANY stays unchanged because it is part
+// of the registry key and window name that existing installs rely on.
+#define APP_BUILD_TAG			L"Kkthnx build"
+
 #define APP_COMPANY				L"Nilesoft"
 #define APP_COMPANYLTD			APP_COMPANY L" Ltd"
 #define APP_NAMEA				"Shell"
@@ -33,12 +37,13 @@ namespace Nilesoft
 #define APP_FILENAME_TITLE		L"shell"
 
 #define	APP_PRODUCT_VERSION		L"$MAJOR$.$MINOR$"
-#define	APP_VERSION				L"$MAJOR$.$MINOR$.$BUILD$"
+#define	APP_VERSION				L"$VERSION$"
 //#define APP_VERSION_FULL		L"$MAJOR$.$MINOR$ build $BUILD$"
 
-constexpr auto APP_EMAIL		= L"support@nilesoft.org";
-constexpr auto APP_WEBSITE		= L"www.nilesoft.org";
-constexpr auto APP_WEBSITELINK	= L"https://nilesoft.org";
+constexpr auto APP_WEBSITE		= L"kkthnx.com";
+constexpr auto APP_WEBSITELINK	= L"https://kkthnx.com/";
+constexpr auto APP_GITHUB		= L"https://github.com/Kkthnx/Shell";
+constexpr auto APP_DONATE		= L"https://ko-fi.com/kkthnx";
 
 #ifdef _WINDLL
 	#define APP_FILENAME		APP_FILENAME_TITLE L".dll"

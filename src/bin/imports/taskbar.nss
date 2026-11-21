@@ -1,11 +1,19 @@
-﻿menu(type="taskbar" vis=key.shift() or key.lbutton() pos=0 title=app.name image=\uE249)
+﻿menu(type="taskbar" vis=key.shift() or key.lbutton() pos=0 title=app.name image='@app.exe')
 {
 	item(title="config" image=\uE10A cmd='"@app.cfg"')
 	item(title="manager" image=\uE0F3 admin cmd='"@app.exe"')
 	item(title="directory" image=\uE0E8 cmd='"@app.dir"')
 	item(title="version\t"+@app.ver vis=label col=1)
 	item(title="docs" image=\uE1C4 cmd='https://nilesoft.org/docs')
-	item(title="donate" image=\uE1A7 cmd='https://nilesoft.org/donate')
+	item(title="website" image=\uE11F cmd='https://kkthnx.com/')
+	item(title="github" image=\uE22B cmd='https://github.com/Kkthnx/Shell')
+	menu(title="donate" image=\uE1A7)
+	{
+		item(title="Ko-fi" cmd='https://ko-fi.com/kkthnx')
+		item(title="Buy Me a Coffee" cmd='https://buymeacoffee.com/kkthnx')
+		item(title="PayPal" cmd='https://www.paypal.com/paypalme/kkthnxtv')
+		item(title="Cash App" cmd='https://cash.app/$JERussell20')
+	}
 }
 menu(where=@(this.count == 0) type="taskbar" image=icon.settings expanded=true)
 {

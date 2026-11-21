@@ -729,9 +729,13 @@ namespace Nilesoft
 						case MENU_CHECKED:
 							menu->checked = id.signer ? expr.release() : new NumberExpression(1);
 							break;
+						case IDENT_DEFAULT:
+							menu->is_default = id.signer ? expr.release() : new NumberExpression(1);
+							break;
 						case MENU_COLUMN:
 						case MENU_COL:
 							menu->column = id.signer ? expr.release() : new NumberExpression(1);
+							break;
 						case MENU_KEYS:
 							menu->keys = expr.release();
 							break;
@@ -880,6 +884,10 @@ namespace Nilesoft
 				{
 					case MENU_TYPE:
 					{
+						// expect_assign() only skips whitespace before '=', so
+						// skip it here too or `type = "file"` fails the quote check.
+						skip();
+						prevCol = l->column;
 						FileSystemObjects fso;
 						if(!parse_property(fso))
 							return false;
@@ -890,6 +898,8 @@ namespace Nilesoft
 					}
 					case MENU_CLSID:
 					{
+						skip();
+						prevCol = l->column;
 						item->properties++;
 						parse_clsid(item);
 						item->has_clsid = true;
@@ -958,6 +968,15 @@ namespace Nilesoft
 						else if(action != IDENT_REMOVE)
 						{
 							item->checked = new NumberExpression(1);
+							item->properties++;
+						}
+						break;
+					case IDENT_DEFAULT:
+						if(id.signer)
+							_parse_expression(item->is_default, action == IDENT_REMOVE);
+						else if(action != IDENT_REMOVE)
+						{
+							item->is_default = new NumberExpression(1);
 							item->properties++;
 						}
 						break;

@@ -24,7 +24,10 @@ jobs:
       BUILD_CONFIGURATION: ${{matrix.configuration}}
       BUILD_PLATFORM: ${{matrix.platform}}
       BIN_PATH: D:\a\Shell\Shell\src\bin
-    runs-on: windows-latest
+    # windows-latest and windows-2025 now use the windows-2025-vs2026 image, whose
+    # Visual Studio 18 has no ARM64 tools for the v143 toolset these projects use.
+    # The windows-2022 image is built around Visual Studio 2022.
+    runs-on: windows-2022
 
     steps:
     - uses: actions/checkout@v4
@@ -39,6 +42,12 @@ jobs:
     - name: Build
       working-directory: ${{env.GITHUB_WORKSPACE}}
       run: msbuild /m /p:Configuration=${{env.BUILD_CONFIGURATION}} /p:Platform=${{env.BUILD_PLATFORM}} ${{env.SOLUTION_FILE_PATH}}
+
+    - name: Test
+      # The test exe cannot run on an x64 runner when built for ARM64.
+      if: matrix.platform != 'arm64'
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      run: '& ./src/bin/tests/menu_snapshot_tests.exe; exit $LASTEXITCODE'
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v4

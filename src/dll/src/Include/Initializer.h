@@ -594,6 +594,11 @@ namespace Nilesoft
 		{
 		private:
 			uintptr_t _last_write_time{};
+			// Write time of the config file at the last failed load, 0 if none.
+			uint64_t _failed_config_time{};
+
+			uint64_t config_write_time() const;
+			bool retry_failed_config();
 
 		public:
 			struct {
@@ -605,8 +610,6 @@ namespace Nilesoft
 			} process;
 
 			Application		application;
-			HRESULT			com_init = E_UNEXPECTED;
-			COM_INITIALIZER com_initializer;
 			bool			is_elevated{};
 			CACHE *cache{};
 			//Hooker			user32_TrackPopupMenu;

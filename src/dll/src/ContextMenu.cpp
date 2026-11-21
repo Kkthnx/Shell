@@ -1,10 +1,14 @@
 #include <pch.h>
 #include "Include/Theme.h"
 #include "Include/ContextMenu.h"
+#include "Include/MenuId.h"
+#include "Include/MenuSnapshot.h"
 #include "Include/stb_image_write.h"
 
 using namespace Nilesoft::Diagnostics;
 #include <mutex>
+#include <algorithm>
+#include <unordered_set>
 
 extern Logger &_log;
 
@@ -191,6 +195,7 @@ namespace Nilesoft
 			_context.dpi = &dpi;
 			_context.wnd.owner = hwnd.owner;
 			_context.hMenu = hMenu;
+			_context.menu_count = MENU::get_count(hMenu);
 			_window = hwnd.owner;
 
 			_cache = Initializer::instance->cache;
@@ -201,7 +206,7 @@ namespace Nilesoft
 
 			_tip.ctx = this;
 
-			if(keyboard.get_keys_state(true))
+			if(keyboard.get_keys_state(true, true))
 			{
 				// shift key is down "Extended Mode"
 				//context.Extended = ::GetAsyncKeyState(VK_SHIFT) < 0;
@@ -228,6 +233,7 @@ namespace Nilesoft
 			if(monitor.info())
 			{
 				_rcMonitor = monitor.rcMonitor;
+				_rcWork = monitor.rcWork;
 				_context.helper.is_primary_monitor = monitor.is_primary();
 			}
 
@@ -487,10 +493,12 @@ namespace Nilesoft
 							mii->privileges = _context.parse_privileges(item->cmd);
 
 						int checked = 0;
+						mii->is_default = false;
 
 						if(item->is_item())
 						{
 							checked = _context.eval_number<int>(item->checked, 0);
+							mii->is_default = _context.eval_number<int>(item->is_default, 0) > 0;
 							if(_settings.new_items.keys)
 								_context.Eval(item->keys, mii->keys);
 						}
@@ -708,6 +716,9 @@ namespace Nilesoft
 					}
 				}
 
+				if(item->type == 0 && si->is_default)
+					mii->is_default = _context.eval_number<int>(si->is_default, 0) > 0;
+
 				bool image_disabled_by_checked = mii->is_checked() && _theme.image.display == 0;
 
 				if(image_disabled_by_checked)
@@ -806,10 +817,11 @@ namespace Nilesoft
 			{
 				mii->fMask |= MIIM_STATE;
 
-				mii->wID = item->wid;
-
-				if(mii->wID == 0 || mii->wID == (uint32_t)-1)
-					mii->wID = ident.get_id();
+				// A popup has no command to invoke, so its native ID is only an
+				// implementation detail of the source menu. Some extensions reuse one
+				// ID for every popup; preserving it makes owner-draw lookups resolve all
+				// of them to the first item. Give each popup its own internal ID instead.
+				mii->wID = MenuId::allocate(item->wid, item->is_menu(), ident.id);
 
 				mii->id = item->uid();
 				mii->hash = item->hash;
@@ -995,6 +1007,7 @@ namespace Nilesoft
 					
 					m_sub->owner = mii;
 					m_sub->std_items = &item->items;
+					m_sub->system_node = item;
 
 					string path;
 					if(!mii->path.empty())
@@ -1004,6 +1017,9 @@ namespace Nilesoft
 					m_sub->path = path.trim(L'/').move();
 				}
 			}
+
+			// MenuItemInfo objects are cached between popups, so reset before rules apply.
+			mii->is_default = false;
 
 			for(auto si : item->native_items)
 			{
@@ -1096,12 +1112,14 @@ namespace Nilesoft
 			MenuItemInfo *owner = nullptr;
 			if(menu->is_main)
 			{
+				catch_up_native_submenus(__system_menu_tree);
 				menu->dynamics = _cache->dynamic.items;
 				menu->std_items = &__system_menu_tree->items;
 			}
 			else
 			{
 				owner = menu->owner;
+				catch_up_native_submenu(menu->system_node);
 			}
 			
 			prepare_system_items(_system_items, menu);
@@ -1357,6 +1375,13 @@ namespace Nilesoft
 				}
 			}
 
+			// Drop separator items at the top too. insert() only skips one separator
+			// at index 0, so two in a row, or one followed by an item flagged with a
+			// separator above, still drew a line at the top of the menu. The first
+			// remaining item lands at index 0, where insert() ignores its top flag.
+			items.erase(items.begin(), std::find_if_not(items.begin(), items.end(),
+				[](const auto *entry) { return entry->is_separator(); }));
+
 			_items.reserve(items.size());
 			_items_command.reserve(items.size());
 			_items_popup.reserve(items.size());
@@ -1374,8 +1399,18 @@ namespace Nilesoft
 
 			// insert items to native menu
 			int i = 0, x = 0;
+			bool has_default = false;
 			for(auto item : items)
 			{
+				// A menu has at most one default item. The first one wins.
+				if(item->is_default)
+				{
+					if(has_default || item->is_separator())
+						item->is_default = false;
+					else
+						has_default = true;
+				}
+
 				item->remove_bitmap();
 				item->add_ownerdraw();
 				item->handle = hMenu;
@@ -1414,7 +1449,15 @@ namespace Nilesoft
 							if(item->column == 1)
 								menu->draw.width = 0;
 
+							// Measure with the font the title is drawn with, or bold text clips.
+							HGDIOBJ previous_font = nullptr;
+							if(item->is_default && font.bold)
+								previous_font = ::SelectObject(dc.get(), font.bold);
+
 							dc.measure(item->title, item->title.length(), &rc, DT_NOCLIP | _theme.text.prefix);
+
+							if(previous_font)
+								::SelectObject(dc.get(), previous_font);
 
 							if(!item->keys.empty())
 							{
@@ -1512,6 +1555,16 @@ namespace Nilesoft
 				Flag<uint32_t> style(mi.dwStyle);
 				style.add(MNS_CHECKORBMP);
 				style.add(MNS_NOCHECK);
+
+				// cyMax is the documented menu height limit before Windows adds scroll
+				// arrows. Its default is the full screen height, which let long menus run
+				// under the taskbar. Limit it to the work area, less the frame Shell adds.
+				if(_rcWork.height() > 0)
+				{
+					auto limit = _rcWork.height() - (_theme.border.padding.top + _theme.border.padding.bottom + 2 * _theme.border.size);
+					if(limit > 0 && (mi.cyMax == 0 || mi.cyMax > static_cast<UINT>(limit)))
+						mi.cyMax = static_cast<UINT>(limit);
+				}
 
 				menu->popup_height += 100;
 				auto h = _rcMonitor.height();
@@ -2432,16 +2485,18 @@ namespace Nilesoft
 					rcText.top = rc->top - dpi(1);
 					rcText.bottom = rc->bottom;
 
+					auto title_font = (mii->is_default && font.bold) ? font.bold : font.handle;
+
 					if(mii->tab <= 0 && mii->keys.empty())
 					{
-						draw_string(dc, font.handle, &rcText, clrtext, mii->title, mii->title.length<int>(), (mii->tab < 0 ? DT_LEFT : DT_RIGHT) | txtfmt);
+						draw_string(dc, title_font, &rcText, clrtext, mii->title, mii->title.length<int>(), (mii->tab < 0 ? DT_LEFT : DT_RIGHT) | txtfmt);
 					}
 					else
 					{
 						auto ds = [&](const string &left, const string &right)
 						{
 							if(!left.empty())
-								draw_string(dc, font.handle, &rcText, clrtext, left, left.length<int>(), DT_LEFT | txtfmt);
+								draw_string(dc, title_font, &rcText, clrtext, left, left.length<int>(), DT_LEFT | txtfmt);
 
 							if(!right.empty())
 							{
@@ -3080,6 +3135,16 @@ namespace Nilesoft
 
 				if(_context.eval_number(sets->modify_items.remove.duplicate, obj))
 					_settings.modify_items.remove.duplicate = obj.to_number<bool>();
+
+				// Each entry in the tray's Safely Remove menu ejects a different device,
+				// and devices can share a name, so title-based duplicate removal drops
+				// real commands there. Same root owner class that wnd.name reports.
+				if(_settings.modify_items.remove.duplicate && _context.wnd.owner)
+				{
+					auto root = ::GetAncestor(_context.wnd.owner, GA_ROOTOWNER);
+					if(Window::class_name(root ? root : _context.wnd.owner).equals(L"SystemTray_Main"))
+						_settings.modify_items.remove.duplicate = false;
+				}
 
 				if(_context.eval_number(sets->modify_items.remove.disabled, obj))
 					_settings.modify_items.remove.disabled = obj.to_number<bool>();
@@ -3720,9 +3785,15 @@ namespace Nilesoft
 
 			if(ver->IsWindows11OrGreater()) 
 			{
-				DWORD dwTextScaleFactor = 100, cbData;
-				::RegGetValueW(HKEY_CURRENT_USER, L"Software\\Microsoft\\Accessibility", 
-							   L"TextScaleFactor", RRF_RT_DWORD, nullptr, &dwTextScaleFactor, &cbData);
+				// Settings > Accessibility > Text size. cbData must hold the buffer size
+				// on input. It was left uninitialized, so the read failed or succeeded
+				// depending on stack contents and some menus ignored the setting.
+				DWORD dwTextScaleFactor = 100, cbData = sizeof(dwTextScaleFactor);
+				if(ERROR_SUCCESS != ::RegGetValueW(HKEY_CURRENT_USER, L"Software\\Microsoft\\Accessibility",
+												   L"TextScaleFactor", RRF_RT_DWORD, nullptr, &dwTextScaleFactor, &cbData))
+					dwTextScaleFactor = 100;
+				// Windows allows 100% to 225%.
+				dwTextScaleFactor = std::clamp<DWORD>(dwTextScaleFactor, 100, 225);
 				long scale = ((dpi.val + 24) * dwTextScaleFactor) / 100;
 				_theme.font.lfHeight = 12 * scale / 100;
 			}
@@ -3843,6 +3914,12 @@ namespace Nilesoft
 				_theme.font.lfHeight *= -1;
 
 			font.handle = ::CreateFontIndirectW(&_theme.font);
+
+			{
+				LOGFONTW lf = _theme.font;
+				lf.lfWeight = std::max<LONG>(lf.lfWeight, FW_BOLD);
+				font.bold = ::CreateFontIndirectW(&lf);
+			}
 
 			font.icon10.Name = font.icon.Name;
 			font.icon10.Size =int( _theme.image.size * 0.70);
@@ -4173,6 +4250,7 @@ namespace Nilesoft
 								if(!moveto.equals(item->path))
 								{
 									item->path = moveto.move();
+									item->moved = true;
 									if(auto submenu = __map_system_menu[item->path.hash()]; submenu)
 									{
 										item->parent = submenu;
@@ -4216,6 +4294,8 @@ namespace Nilesoft
 			::SendMessageW(hwnd.owner, WM_INITMENUPOPUP, reinterpret_cast<WPARAM>(hMenu), 0xFFFFFFFF);
 
 			auto itmes_count = ::GetMenuItemCount(hMenu);
+			if(itmes_count < 0)
+				return;
 
 			menu->items.reserve(itmes_count);
 
@@ -4256,6 +4336,7 @@ namespace Nilesoft
 					else
 					{
 						item->type = mii.hSubMenu != nullptr;
+						item->native_menu = mii.hSubMenu;
 						item->disabled = mii.fState & MFS_DISABLED;
 						item->checked = mii.fState & MFS_CHECKED;
 						item->radio_check = mii.fType & MFT_RADIOCHECK;
@@ -4285,27 +4366,24 @@ namespace Nilesoft
 
 							if(_settings.modify_items.remove.duplicate)
 							{
-								uint32_t indexof = 0;
-								for(auto im : menu->items)
+								for(size_t index = 0; index < menu->items.size(); index++)
 								{
-									if(im->hash == item->hash)
+									auto im = menu->items[index];
+									if(im->hash != item->hash || im->type != item->type)
+										continue;
+
+									found_duplicate = 1;
+
+									// Keep the enabled copy in place of an earlier disabled one.
+									if(im->disabled && !item->disabled)
 									{
-										if(im->type == item->type)
-										{
-											found_duplicate = 1;
-											if(im->disabled)
-											{
-												if(!item->disabled)
-												{
-													found_duplicate = 2;
-													menu->items[indexof] = item.release();
-												}
-											}
-											break;
-										}
+										found_duplicate = 2;
+										forget_system_subtree(im);
+										menu->items[index] = item.release();
+										delete im;
 									}
+									break;
 								}
-								indexof++;
 							}
 							
 							if(found_duplicate == 1)
@@ -4320,20 +4398,120 @@ namespace Nilesoft
 							build_system_menuitems(mii.hSubMenu, itemPtr, false);
 					}
 					
-					if(found_duplicate != 2)
+					if(itemPtr->is_menu())
 					{
-						if(item->is_menu())
-						{
-							string sub_path = item->name;
-							if(!item->path.empty())
-								sub_path = item->path + L'/' + sub_path;
-							__map_system_menu[sub_path.hash()] = itemPtr;
-						}
-
-						menu->items.push_back(item.release());
+						string sub_path = itemPtr->name;
+						if(!itemPtr->path.empty())
+							sub_path = itemPtr->path + L'/' + sub_path;
+						__map_system_menu[sub_path.hash()] = itemPtr;
 					}
+
+					// found_duplicate == 2 already placed the item in menu->items.
+					if(found_duplicate != 2)
+						menu->items.push_back(item.release());
 				}
 			}
+
+			// Set last, so a read that stopped early leaves -1 and is redone.
+			menu->native_read_count = itmes_count;
+		}
+
+		// Windows can fill a submenu after Shell has read it. Send to and New are
+		// filled when they are first shown, so the copy taken in Initialize() can
+		// be empty or short. Before a popup is shown, compare the submenu's live
+		// item count with the count at the last completed read and read it again
+		// if Windows added items. Items that modify(menu=...) rules moved into the
+		// node are kept and re-attached.
+		bool ContextMenu::catch_up_native_submenu(menuitem_t *node)
+		{
+			if(!node || !node->is_menu() || !node->native_menu)
+				return false;
+
+			// The submenu belongs to a shell extension and may already be destroyed.
+			if(!::IsMenu(node->native_menu))
+				return false;
+
+			if(::GetMenuItemCount(node->native_menu) <= node->native_read_count)
+				return false;
+
+			MenuSnapshot::refresh_preserving_moved(node,
+				[&] { build_system_menuitems(node->native_menu, node, false); },
+				[&](const std::vector<menuitem_t *> &old_nodes) { forget_system_nodes(old_nodes); });
+			return true;
+		}
+
+		// Whole tree, walked with an explicit stack. A node that was read again
+		// is expanded afterwards, so its new children are checked as well.
+		void ContextMenu::catch_up_native_submenus(menuitem_t *root)
+		{
+			if(!root)
+				return;
+
+			std::vector<menuitem_t *> pending(root->items.begin(), root->items.end());
+			while(!pending.empty())
+			{
+				auto node = pending.back();
+				pending.pop_back();
+
+				if(!node || !node->is_menu())
+					continue;
+
+				catch_up_native_submenu(node);
+				pending.insert(pending.end(), node->items.begin(), node->items.end());
+			}
+		}
+
+		// Remove every pointer Shell keeps outside the tree that refers to one of
+		// these nodes or to its child list, before the nodes are deleted.
+		void ContextMenu::forget_system_nodes(const std::vector<menuitem_t *> &nodes)
+		{
+			if(nodes.empty())
+				return;
+
+			std::unordered_set<const menuitem_t *> gone(nodes.begin(), nodes.end());
+			std::unordered_set<const std::vector<menuitem_t *> *> gone_lists;
+			for(auto node : nodes)
+			{
+				if(node)
+					gone_lists.insert(&node->items);
+			}
+
+			std::erase_if(__map_system_menu, [&](const auto &entry) { return gone.contains(entry.second); });
+
+			std::erase_if(_menus, [&](const auto &entry)
+			{
+				return gone.contains(entry.second.system_node) || gone_lists.contains(entry.second.std_items);
+			});
+
+			// Cached MenuItemInfo objects live across popups and point at child lists.
+			for(auto list : { &_items, &_items_popup, &_items_command, &_main_popup })
+			{
+				for(auto mii : *list)
+				{
+					if(mii && mii->sys_items && gone_lists.contains(mii->sys_items))
+						mii->sys_items = nullptr;
+				}
+			}
+
+			std::erase_if(__movable_system_items, [&](const menuitem_t *node) { return gone.contains(node); });
+		}
+
+		void ContextMenu::forget_system_subtree(menuitem_t *item)
+		{
+			if(!item)
+				return;
+
+			std::vector<menuitem_t *> nodes{ item };
+			for(size_t i = 0; i < nodes.size(); i++)
+			{
+				for(auto child : nodes[i]->items)
+				{
+					if(child)
+						nodes.push_back(child);
+				}
+			}
+
+			forget_system_nodes(nodes);
 		}
 
 		bool ContextMenu::Initialize()
@@ -4469,6 +4647,13 @@ namespace Nilesoft
 
 				if(0 == ::GetPropW(hwnd.owner, UxSubclass))
 					build_system_menuitems(_hMenu_original, __system_menu_tree, true);
+				else
+				{
+					// Windows' own items are not used for windows Shell subclasses,
+					// such as the taskbar, so this.count must not report them.
+					// The default taskbar.nss relies on this.count == 0 there.
+					_context.menu_count = 0;
+				}
 
 				if(_settings.modify_items.enabled)
 					build_main_system_menuitems(__system_menu_tree, true);
@@ -4517,6 +4702,11 @@ namespace Nilesoft
 				if(font.handle) {
 					::DeleteObject(font.handle);
 					font.handle = nullptr;
+				}
+
+				if(font.bold) {
+					::DeleteObject(font.bold);
+					font.bold = nullptr;
 				}
 
 				if(hCursor)
@@ -4931,14 +5121,18 @@ namespace Nilesoft
 											 text, text.length<int>(),
 											 (ctx->is_layoutRTL ? DT_RIGHT : DT_LEFT) | DT_EXPANDTABS | DT_WORDBREAK | DT_EDITCONTROL);
 
-							long x = rect.left + (rect.width() / 2) - (size.cx / 2);
+							// Monitor edges are virtual-screen coordinates, so a monitor left
+							// of or above the primary one has negative edges. Keep the tip
+							// inside its own monitor, never against 0.
+							const auto &monitor = ctx->_rcMonitor;
+							long x = rect.left + (rect.width() - size.cx) / 2;
 							long y = rect.top - size.cy - ctx->dpi(10);
 
-							if(x < 0) x = 0;
-							if(y < 0) y = rect.bottom + ctx->dpi(10);
+							if(y < monitor.top)
+								y = rect.bottom + ctx->dpi(10);
 
-							if((x + size.cx) > ctx->_rcMonitor.right)
-								x = ctx->_rcMonitor.right - size.cx;
+							// Left edge wins when the tip is wider than the monitor.
+							x = std::max<long>(monitor.left, std::min<long>(x, monitor.right - size.cx));
 
 							if(::SetWindowPos(hWnd, HWND_TOPMOST, x, y, size.cx, size.cy, SWP_NOACTIVATE | SWP_SHOWWINDOW))
 							{
@@ -5745,7 +5939,7 @@ namespace Nilesoft
 							wp->cx += bz + theme->border.padding.width();
 							wp->cy += bz + theme->border.padding.height();
 
-							if((wp->cy + 100) > ctx->_rcMonitor.height())
+							if((wp->cy + 100) > ctx->_rcWork.height())
 							{
 								wnd->has_scroll = true;
 								wp->cy -= ctx->dpi(10);
@@ -5819,7 +6013,11 @@ namespace Nilesoft
 
 							if(wnd->has_scroll)
 							{
-								wp->y = (ctx->_rcMonitor.height() - wnd->height) / 2;
+								// Center in the work area of the menu's own monitor, so the
+								// scroll arrows stay clear of the taskbar. Its top edge is not 0
+								// for a monitor above or below the primary one.
+								const auto &work = ctx->_rcWork;
+								wp->y = work.top + (work.height() - wnd->height) / 2;
 							}
 							else if((wnd->height + 100) > (ctx->_rcMonitor.height() / 2))
 							{

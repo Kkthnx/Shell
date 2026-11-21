@@ -79,7 +79,7 @@ try
 	$ChangeRevis	= 0
 	
 	$___Build__	= 19	# auto increase
-	$___Revis__	= 0	# auto increase
+	$___Revis__	= 1	# auto increase
 	
 	$AppCompany		= "Nilesoft"
 	$AppName		= "Shell"
