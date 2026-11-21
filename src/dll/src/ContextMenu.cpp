@@ -1366,6 +1366,13 @@ namespace Nilesoft
 				}
 			}
 
+			// Drop separator items at the top too. insert() only skips one separator
+			// at index 0, so two in a row, or one followed by an item flagged with a
+			// separator above, still drew a line at the top of the menu. The first
+			// remaining item lands at index 0, where insert() ignores its top flag.
+			items.erase(items.begin(), std::find_if_not(items.begin(), items.end(),
+				[](const auto *entry) { return entry->is_separator(); }));
+
 			_items.reserve(items.size());
 			_items_command.reserve(items.size());
 			_items_popup.reserve(items.size());
