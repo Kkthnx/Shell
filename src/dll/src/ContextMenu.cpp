@@ -202,7 +202,7 @@ namespace Nilesoft
 
 			_tip.ctx = this;
 
-			if(keyboard.get_keys_state(true))
+			if(keyboard.get_keys_state(true, true))
 			{
 				// shift key is down "Extended Mode"
 				//context.Extended = ::GetAsyncKeyState(VK_SHIFT) < 0;

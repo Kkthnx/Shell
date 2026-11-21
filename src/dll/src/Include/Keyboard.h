@@ -33,7 +33,11 @@ namespace Nilesoft
 				_keys.clear();
 			}
 		
-			uint8_t get_keys_state(bool async = true)
+			// at_message also counts keys that were down when the thread's current
+			// input message was generated (GetKeyState). The menu is built only after
+			// every shell extension has answered, so a key released in that gap is
+			// still seen as held at the click.
+			uint8_t get_keys_state(bool async = true, bool at_message = false)
 			{
 				reset();
 
@@ -41,7 +45,7 @@ namespace Nilesoft
 
 				for(auto key : _KEYS)
 				{
-					if(IsKeyDown(key, async))
+					if(IsKeyDown(key, async) || (at_message && IsKeyDown(key, false)))
 					{
 						if(key == VK_LBUTTON && swb)
 							_has_contextmenu = VK_LBUTTON;
