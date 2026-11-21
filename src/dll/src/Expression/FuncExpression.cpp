@@ -732,6 +732,9 @@ namespace Nilesoft
 							Text::Clipboard::Empty();
 							break;
 						case IDENT_IS_EMPTY:
+							// True only when the clipboard holds nothing at all, text or not.
+							_result = ::CountClipboardFormats() == 0;
+							break;
 						case IDENT_LEN:
 						case IDENT_LENGTH:
 						{
@@ -742,11 +745,7 @@ namespace Nilesoft
 								{
 									if(auto hglb = ::GetClipboardData(CF_UNICODETEXT); hglb)
 									{
-										if(Id[1] == IDENT_IS_EMPTY)
-										{
-											_result = !hglb;
-										}
-										else if(auto lptstr = (const wchar_t *)::GlobalLock(hglb); lptstr)
+										if(auto lptstr = (const wchar_t *)::GlobalLock(hglb); lptstr)
 										{
 											_result = string::Length(lptstr);
 											//ReplaceSelection(hwndSelected, pbox, lptstr);
