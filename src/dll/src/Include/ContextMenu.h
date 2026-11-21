@@ -687,6 +687,7 @@ plutovg_move_to(pluto, start.x, start.y);
 			HCURSOR hCursor{};
 			uint32_t _showdelay[2]{ UINT32_MAX, UINT32_MAX };
 			Rect _rcMonitor{};
+			Rect _rcWork{}; // monitor minus the taskbar and docked app bars
 			LANGID languageId = 0;
 			int is_layoutRTL = 0;
 			Tip _tip;

@@ -233,6 +233,7 @@ namespace Nilesoft
 			if(monitor.info())
 			{
 				_rcMonitor = monitor.rcMonitor;
+				_rcWork = monitor.rcWork;
 				_context.helper.is_primary_monitor = monitor.is_primary();
 			}
 
@@ -1528,6 +1529,16 @@ namespace Nilesoft
 				Flag<uint32_t> style(mi.dwStyle);
 				style.add(MNS_CHECKORBMP);
 				style.add(MNS_NOCHECK);
+
+				// cyMax is the documented menu height limit before Windows adds scroll
+				// arrows. Its default is the full screen height, which let long menus run
+				// under the taskbar. Limit it to the work area, less the frame Shell adds.
+				if(_rcWork.height() > 0)
+				{
+					auto limit = _rcWork.height() - (_theme.border.padding.top + _theme.border.padding.bottom + 2 * _theme.border.size);
+					if(limit > 0 && (mi.cyMax == 0 || mi.cyMax > static_cast<UINT>(limit)))
+						mi.cyMax = static_cast<UINT>(limit);
+				}
 
 				menu->popup_height += 100;
 				auto h = _rcMonitor.height();
@@ -5065,14 +5076,18 @@ namespace Nilesoft
 											 text, text.length<int>(),
 											 (ctx->is_layoutRTL ? DT_RIGHT : DT_LEFT) | DT_EXPANDTABS | DT_WORDBREAK | DT_EDITCONTROL);
 
-							long x = rect.left + (rect.width() / 2) - (size.cx / 2);
+							// Monitor edges are virtual-screen coordinates, so a monitor left
+							// of or above the primary one has negative edges. Keep the tip
+							// inside its own monitor, never against 0.
+							const auto &monitor = ctx->_rcMonitor;
+							long x = rect.left + (rect.width() - size.cx) / 2;
 							long y = rect.top - size.cy - ctx->dpi(10);
 
-							if(x < 0) x = 0;
-							if(y < 0) y = rect.bottom + ctx->dpi(10);
+							if(y < monitor.top)
+								y = rect.bottom + ctx->dpi(10);
 
-							if((x + size.cx) > ctx->_rcMonitor.right)
-								x = ctx->_rcMonitor.right - size.cx;
+							// Left edge wins when the tip is wider than the monitor.
+							x = std::max<long>(monitor.left, std::min<long>(x, monitor.right - size.cx));
 
 							if(::SetWindowPos(hWnd, HWND_TOPMOST, x, y, size.cx, size.cy, SWP_NOACTIVATE | SWP_SHOWWINDOW))
 							{
@@ -5879,7 +5894,7 @@ namespace Nilesoft
 							wp->cx += bz + theme->border.padding.width();
 							wp->cy += bz + theme->border.padding.height();
 
-							if((wp->cy + 100) > ctx->_rcMonitor.height())
+							if((wp->cy + 100) > ctx->_rcWork.height())
 							{
 								wnd->has_scroll = true;
 								wp->cy -= ctx->dpi(10);
@@ -5953,7 +5968,11 @@ namespace Nilesoft
 
 							if(wnd->has_scroll)
 							{
-								wp->y = (ctx->_rcMonitor.height() - wnd->height) / 2;
+								// Center in the work area of the menu's own monitor, so the
+								// scroll arrows stay clear of the taskbar. Its top edge is not 0
+								// for a monitor above or below the primary one.
+								const auto &work = ctx->_rcWork;
+								wp->y = work.top + (work.height() - wnd->height) / 2;
 							}
 							else if((wnd->height + 100) > (ctx->_rcMonitor.height() / 2))
 							{
