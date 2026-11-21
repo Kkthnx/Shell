@@ -129,10 +129,11 @@ default = update_existing | recursive<br><br>
 
 <section id="io.file.create" class="my-5">
 	<h5>io.file.create</h5>
-	<p>Create new file with content option.</p>
+	<p>Create new file with content option. The optional third argument selects the created file in Explorer and starts renaming it.</p>
 	<p>Syntax</p>
 	<code>io.file.create(path)</code><br>
-	<code>io.file.create(path, "Hello World!")</code>
+	<code>io.file.create(path, "Hello World!")</code><br>
+	<code>io.file.create(path, "Hello World!", true)</code>
 </section>
 
 <section id="io.file.write" class="my-5">
