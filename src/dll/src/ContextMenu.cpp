@@ -1,10 +1,14 @@
 #include <pch.h>
 #include "Include/Theme.h"
 #include "Include/ContextMenu.h"
+#include "Include/MenuId.h"
+#include "Include/MenuSnapshot.h"
 #include "Include/stb_image_write.h"
 
 using namespace Nilesoft::Diagnostics;
 #include <mutex>
+#include <algorithm>
+#include <unordered_set>
 
 extern Logger &_log;
 
@@ -807,10 +811,11 @@ namespace Nilesoft
 			{
 				mii->fMask |= MIIM_STATE;
 
-				mii->wID = item->wid;
-
-				if(mii->wID == 0 || mii->wID == (uint32_t)-1)
-					mii->wID = ident.get_id();
+				// A popup has no command to invoke, so its native ID is only an
+				// implementation detail of the source menu. Some extensions reuse one
+				// ID for every popup; preserving it makes owner-draw lookups resolve all
+				// of them to the first item. Give each popup its own internal ID instead.
+				mii->wID = MenuId::allocate(item->wid, item->is_menu(), ident.id);
 
 				mii->id = item->uid();
 				mii->hash = item->hash;
@@ -996,6 +1001,7 @@ namespace Nilesoft
 					
 					m_sub->owner = mii;
 					m_sub->std_items = &item->items;
+					m_sub->system_node = item;
 
 					string path;
 					if(!mii->path.empty())
@@ -1097,12 +1103,14 @@ namespace Nilesoft
 			MenuItemInfo *owner = nullptr;
 			if(menu->is_main)
 			{
+				catch_up_native_submenus(__system_menu_tree);
 				menu->dynamics = _cache->dynamic.items;
 				menu->std_items = &__system_menu_tree->items;
 			}
 			else
 			{
 				owner = menu->owner;
+				catch_up_native_submenu(menu->system_node);
 			}
 			
 			prepare_system_items(_system_items, menu);
@@ -4184,6 +4192,7 @@ namespace Nilesoft
 								if(!moveto.equals(item->path))
 								{
 									item->path = moveto.move();
+									item->moved = true;
 									if(auto submenu = __map_system_menu[item->path.hash()]; submenu)
 									{
 										item->parent = submenu;
@@ -4227,6 +4236,8 @@ namespace Nilesoft
 			::SendMessageW(hwnd.owner, WM_INITMENUPOPUP, reinterpret_cast<WPARAM>(hMenu), 0xFFFFFFFF);
 
 			auto itmes_count = ::GetMenuItemCount(hMenu);
+			if(itmes_count < 0)
+				return;
 
 			menu->items.reserve(itmes_count);
 
@@ -4267,6 +4278,7 @@ namespace Nilesoft
 					else
 					{
 						item->type = mii.hSubMenu != nullptr;
+						item->native_menu = mii.hSubMenu;
 						item->disabled = mii.fState & MFS_DISABLED;
 						item->checked = mii.fState & MFS_CHECKED;
 						item->radio_check = mii.fType & MFT_RADIOCHECK;
@@ -4296,27 +4308,24 @@ namespace Nilesoft
 
 							if(_settings.modify_items.remove.duplicate)
 							{
-								uint32_t indexof = 0;
-								for(auto im : menu->items)
+								for(size_t index = 0; index < menu->items.size(); index++)
 								{
-									if(im->hash == item->hash)
+									auto im = menu->items[index];
+									if(im->hash != item->hash || im->type != item->type)
+										continue;
+
+									found_duplicate = 1;
+
+									// Keep the enabled copy in place of an earlier disabled one.
+									if(im->disabled && !item->disabled)
 									{
-										if(im->type == item->type)
-										{
-											found_duplicate = 1;
-											if(im->disabled)
-											{
-												if(!item->disabled)
-												{
-													found_duplicate = 2;
-													menu->items[indexof] = item.release();
-												}
-											}
-											break;
-										}
+										found_duplicate = 2;
+										forget_system_subtree(im);
+										menu->items[index] = item.release();
+										delete im;
 									}
+									break;
 								}
-								indexof++;
 							}
 							
 							if(found_duplicate == 1)
@@ -4331,20 +4340,120 @@ namespace Nilesoft
 							build_system_menuitems(mii.hSubMenu, itemPtr, false);
 					}
 					
-					if(found_duplicate != 2)
+					if(itemPtr->is_menu())
 					{
-						if(item->is_menu())
-						{
-							string sub_path = item->name;
-							if(!item->path.empty())
-								sub_path = item->path + L'/' + sub_path;
-							__map_system_menu[sub_path.hash()] = itemPtr;
-						}
-
-						menu->items.push_back(item.release());
+						string sub_path = itemPtr->name;
+						if(!itemPtr->path.empty())
+							sub_path = itemPtr->path + L'/' + sub_path;
+						__map_system_menu[sub_path.hash()] = itemPtr;
 					}
+
+					// found_duplicate == 2 already placed the item in menu->items.
+					if(found_duplicate != 2)
+						menu->items.push_back(item.release());
 				}
 			}
+
+			// Set last, so a read that stopped early leaves -1 and is redone.
+			menu->native_read_count = itmes_count;
+		}
+
+		// Windows can fill a submenu after Shell has read it. Send to and New are
+		// filled when they are first shown, so the copy taken in Initialize() can
+		// be empty or short. Before a popup is shown, compare the submenu's live
+		// item count with the count at the last completed read and read it again
+		// if Windows added items. Items that modify(menu=...) rules moved into the
+		// node are kept and re-attached.
+		bool ContextMenu::catch_up_native_submenu(menuitem_t *node)
+		{
+			if(!node || !node->is_menu() || !node->native_menu)
+				return false;
+
+			// The submenu belongs to a shell extension and may already be destroyed.
+			if(!::IsMenu(node->native_menu))
+				return false;
+
+			if(::GetMenuItemCount(node->native_menu) <= node->native_read_count)
+				return false;
+
+			MenuSnapshot::refresh_preserving_moved(node,
+				[&] { build_system_menuitems(node->native_menu, node, false); },
+				[&](const std::vector<menuitem_t *> &old_nodes) { forget_system_nodes(old_nodes); });
+			return true;
+		}
+
+		// Whole tree, walked with an explicit stack. A node that was read again
+		// is expanded afterwards, so its new children are checked as well.
+		void ContextMenu::catch_up_native_submenus(menuitem_t *root)
+		{
+			if(!root)
+				return;
+
+			std::vector<menuitem_t *> pending(root->items.begin(), root->items.end());
+			while(!pending.empty())
+			{
+				auto node = pending.back();
+				pending.pop_back();
+
+				if(!node || !node->is_menu())
+					continue;
+
+				catch_up_native_submenu(node);
+				pending.insert(pending.end(), node->items.begin(), node->items.end());
+			}
+		}
+
+		// Remove every pointer Shell keeps outside the tree that refers to one of
+		// these nodes or to its child list, before the nodes are deleted.
+		void ContextMenu::forget_system_nodes(const std::vector<menuitem_t *> &nodes)
+		{
+			if(nodes.empty())
+				return;
+
+			std::unordered_set<const menuitem_t *> gone(nodes.begin(), nodes.end());
+			std::unordered_set<const std::vector<menuitem_t *> *> gone_lists;
+			for(auto node : nodes)
+			{
+				if(node)
+					gone_lists.insert(&node->items);
+			}
+
+			std::erase_if(__map_system_menu, [&](const auto &entry) { return gone.contains(entry.second); });
+
+			std::erase_if(_menus, [&](const auto &entry)
+			{
+				return gone.contains(entry.second.system_node) || gone_lists.contains(entry.second.std_items);
+			});
+
+			// Cached MenuItemInfo objects live across popups and point at child lists.
+			for(auto list : { &_items, &_items_popup, &_items_command, &_main_popup })
+			{
+				for(auto mii : *list)
+				{
+					if(mii && mii->sys_items && gone_lists.contains(mii->sys_items))
+						mii->sys_items = nullptr;
+				}
+			}
+
+			std::erase_if(__movable_system_items, [&](const menuitem_t *node) { return gone.contains(node); });
+		}
+
+		void ContextMenu::forget_system_subtree(menuitem_t *item)
+		{
+			if(!item)
+				return;
+
+			std::vector<menuitem_t *> nodes{ item };
+			for(size_t i = 0; i < nodes.size(); i++)
+			{
+				for(auto child : nodes[i]->items)
+				{
+					if(child)
+						nodes.push_back(child);
+				}
+			}
+
+			forget_system_nodes(nodes);
 		}
 
 		bool ContextMenu::Initialize()

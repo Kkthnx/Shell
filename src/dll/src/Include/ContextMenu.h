@@ -92,6 +92,10 @@ namespace Nilesoft
 			int checked = 0;
 			ULONG_PTR dwItemData = 0;
 			HBITMAP image = nullptr;
+			// Windows' own submenu this node was read from, and how many items it had
+			// when that read finished (-1 until a read completes).
+			HMENU native_menu = nullptr;
+			int native_read_count = -1;
 			menuitem_t *parent = nullptr;
 			string path;
 			Position position = Position::Auto;
@@ -99,6 +103,7 @@ namespace Nilesoft
 			std::vector<NativeMenu*> native_items;
 			std::vector<menuitem_t *> items;
 			bool is_toplevel = false;
+			bool moved = false;
 			~menuitem_t()
 			{
 				for(auto item : items)
@@ -359,6 +364,7 @@ plutovg_move_to(pluto, start.x, start.y);
 				std::vector<NativeMenu *> dynamics;
 
 				std::vector<menuitem_t *> *std_items = nullptr;
+				menuitem_t *system_node = nullptr; // system submenu this popup shows
 
 				NativeMenu *parent{};
 				//bool dynamic{};
@@ -734,6 +740,10 @@ plutovg_move_to(pluto, start.x, start.y);
 			int Uninitialize();
 			int InvokeCommand(int id);	
 			void build_system_menuitems(HMENU hMenu, menuitem_t *menu, bool is_root = false);
+			bool catch_up_native_submenu(menuitem_t *node);
+			void catch_up_native_submenus(menuitem_t *root);
+			void forget_system_nodes(const std::vector<menuitem_t *> &nodes);
+			void forget_system_subtree(menuitem_t *item);
 			void build_main_system_menuitems(menuitem_t *menu, bool is_root = false);
 
 
