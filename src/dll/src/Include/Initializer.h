@@ -610,8 +610,6 @@ namespace Nilesoft
 			} process;
 
 			Application		application;
-			HRESULT			com_init = E_UNEXPECTED;
-			COM_INITIALIZER com_initializer;
 			bool			is_elevated{};
 			CACHE *cache{};
 			//Hooker			user32_TrackPopupMenu;

@@ -16,8 +16,11 @@ namespace Nilesoft
 
 			try
 			{
-				com_initializer.initialize();
-
+				// No COM initialization here. This runs from DllMain on whatever thread
+				// loads the DLL, in any process, and Microsoft documents that DllMain must
+				// not call CoInitialize(Ex). Doing so made that thread an STA, which left
+				// some host services spinning. Threads that use COM here already have it,
+				// and the expression functions that need it initialize it locally.
 				application.Name = APP_NAME;
 				application.FileName = APP_FILENAME_TITLE;
 				application.Version = APP_VERSION;
