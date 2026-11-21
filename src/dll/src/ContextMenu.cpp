@@ -3082,6 +3082,16 @@ namespace Nilesoft
 				if(_context.eval_number(sets->modify_items.remove.duplicate, obj))
 					_settings.modify_items.remove.duplicate = obj.to_number<bool>();
 
+				// Each entry in the tray's Safely Remove menu ejects a different device,
+				// and devices can share a name, so title-based duplicate removal drops
+				// real commands there. Same root owner class that wnd.name reports.
+				if(_settings.modify_items.remove.duplicate && _context.wnd.owner)
+				{
+					auto root = ::GetAncestor(_context.wnd.owner, GA_ROOTOWNER);
+					if(Window::class_name(root ? root : _context.wnd.owner).equals(L"SystemTray_Main"))
+						_settings.modify_items.remove.duplicate = false;
+				}
+
 				if(_context.eval_number(sets->modify_items.remove.disabled, obj))
 					_settings.modify_items.remove.disabled = obj.to_number<bool>();
 
