@@ -2,6 +2,7 @@
 #include "Resource.h"
 #include "Expression\Constants.h"
 #include "Expression\Variable.h"
+#include "System\IO\DeleteTree.h"
 
 #include <propsys.h>
 #include <propvarutil.h>
@@ -3698,7 +3699,12 @@ namespace Nilesoft
 				switch(Id[1])
 				{
 					case IDENT_DELETE:
-						_result = Path::Delete(arg0);
+						// io.delete(path, true) also deletes a directory's contents.
+						// Without it only files and empty directories are removed, as before.
+						if(argc > 1 && eval_arg(1).to_bool())
+							_result = IO::DeleteTree(std::wstring(arg0.c_str()));
+						else
+							_result = Path::Delete(arg0);
 						break;
 					case IDENT_COPY:
 					{

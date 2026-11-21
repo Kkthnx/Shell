@@ -70,9 +70,10 @@ default = update_existing | recursive<br><br>
 
 <section id="io.delete" class="my-5">
 	<h5>io.delete</h5>
-	<p>Deletes an existing path.</p>
+	<p>Deletes an existing path. A directory is only deleted when it is empty, unless the optional second argument is true, which also deletes everything inside it. Junctions and symbolic links inside it are removed without touching their targets.</p>
 	<p>Syntax</p>
-	<code>io.delete(path)</code>
+	<code>io.delete(path)</code><br>
+	<code>io.delete(path, true)</code>
 </section>
 
 <section id="io.directory.create" class="my-5">
