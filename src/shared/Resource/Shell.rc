@@ -26,10 +26,11 @@ LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
         {
 			VALUE "CompanyName", APP_COMPANY
 #ifdef APP_CANARY 
-			VALUE "FileDescription", APP_FULLNAME L" " APP_CANARY
+			VALUE "FileDescription", APP_FULLNAME L" " APP_CANARY L" (" APP_BUILD_TAG L")"
 #else
-			VALUE "FileDescription", APP_FULLNAME
+			VALUE "FileDescription", APP_FULLNAME L" (" APP_BUILD_TAG L")"
 #endif
+			VALUE "Comments", APP_BUILD_TAG
 			VALUE "FileVersion", APP_VERSION
 			VALUE "InternalName", APP_FILENAME
 			VALUE "LegalCopyright", L"\xA9 Nilesoft Ltd."

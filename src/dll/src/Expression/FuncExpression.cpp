@@ -4559,9 +4559,9 @@ namespace Nilesoft
 				case IDENT_ABOUT:
 				{
 					string about;
-					about.format(L"%s\nversion %s\n%s\n© %d %s.",
+					about.format(L"%s\nversion %s (%s)\n%s\n© %d %s.",
 								 APP_COMPANY L" " APP_NAME,
-								 APP_VERSION,
+								 APP_VERSION, APP_BUILD_TAG,
 								 APP_WEBSITE,
 								 VERSION_YEAR, APP_COMPANYLTD);
 					::MessageBoxW(nullptr, about, L"About", MB_OK | MB_ICONINFORMATION);

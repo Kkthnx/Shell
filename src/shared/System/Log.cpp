@@ -89,7 +89,7 @@ namespace Nilesoft
 			msg.append_format(L"\r\nversion %d.%d.%d", VERSION_MAJOR, VERSION_MINOR, VERSION_BUILD);
 			if constexpr(VERSION_REV > 0)
 				msg.append_format(L".%d", VERSION_REV);
-			msg.append_format(L" %s\r\n", APP_PROCESS);
+			msg.append_format(L" %s (%s)\r\n", APP_PROCESS, APP_BUILD_TAG);
 			msg.append_format(L"%s\r\n", APP_EMAIL);
 			msg.append_format(L"%s\r\n", APP_WEBSITELINK);
 			//msg.append_format(L"Create on %s\r\n", Now().c_str());
