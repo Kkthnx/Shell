@@ -594,6 +594,11 @@ namespace Nilesoft
 		{
 		private:
 			uintptr_t _last_write_time{};
+			// Write time of the config file at the last failed load, 0 if none.
+			uint64_t _failed_config_time{};
+
+			uint64_t config_write_time() const;
+			bool retry_failed_config();
 
 		public:
 			struct {

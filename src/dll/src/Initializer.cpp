@@ -95,8 +95,13 @@ namespace Nilesoft
 
 					cache->Packages.load();
 
+					// Taken before parsing, so a save made while it runs still counts
+					// as a change and triggers a retry.
+					const auto config_time = config_write_time();
+
 					if(!parser.Load())
 					{
+						_failed_config_time = config_time;
 						Status.Error = true;
 						uninit();
 						Path::CurrentDirectory(cur_dir);
@@ -176,7 +181,7 @@ namespace Nilesoft
 					return false;
 				}
 
-				if(Status.Error && ch < 2)
+				if(Status.Error && ch < 2 && !retry_failed_config())
 					return false;
 
 				if(Status.Refresh)
@@ -228,9 +233,36 @@ namespace Nilesoft
 		{
 			if(Status.Error)
 			{
+				if(retry_failed_config())
+					return false;
 				return detect_changes ? !config_has_changed() : true;
 			}
 			return false;
+		}
+
+		uint64_t Initializer::config_write_time() const
+		{
+			WIN32_FILE_ATTRIBUTE_DATA data{};
+			if(!::GetFileAttributesExW(application.Config, GetFileExInfoStandard, &data))
+				return 0;
+			return (uint64_t(data.ftLastWriteTime.dwHighDateTime) << 32) | data.ftLastWriteTime.dwLowDateTime;
+		}
+
+		// After a failed load Shell stays off until the config file is saved again.
+		// Once its write time differs from the failed one, clear the error and
+		// ask for a reload, so fixing the file works without restarting Explorer.
+		bool Initializer::retry_failed_config()
+		{
+			if(!Status.Error)
+				return false;
+
+			const auto now = config_write_time();
+			if(now == 0 || now == _failed_config_time)
+				return false;
+
+			Status.Error = false;
+			Status.Refresh = true;
+			return true;
 		}
 
 		void Initializer::load_mui()
