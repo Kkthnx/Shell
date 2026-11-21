@@ -3785,9 +3785,15 @@ namespace Nilesoft
 
 			if(ver->IsWindows11OrGreater()) 
 			{
-				DWORD dwTextScaleFactor = 100, cbData;
-				::RegGetValueW(HKEY_CURRENT_USER, L"Software\\Microsoft\\Accessibility", 
-							   L"TextScaleFactor", RRF_RT_DWORD, nullptr, &dwTextScaleFactor, &cbData);
+				// Settings > Accessibility > Text size. cbData must hold the buffer size
+				// on input. It was left uninitialized, so the read failed or succeeded
+				// depending on stack contents and some menus ignored the setting.
+				DWORD dwTextScaleFactor = 100, cbData = sizeof(dwTextScaleFactor);
+				if(ERROR_SUCCESS != ::RegGetValueW(HKEY_CURRENT_USER, L"Software\\Microsoft\\Accessibility",
+												   L"TextScaleFactor", RRF_RT_DWORD, nullptr, &dwTextScaleFactor, &cbData))
+					dwTextScaleFactor = 100;
+				// Windows allows 100% to 225%.
+				dwTextScaleFactor = std::clamp<DWORD>(dwTextScaleFactor, 100, 225);
 				long scale = ((dpi.val + 24) * dwTextScaleFactor) / 100;
 				_theme.font.lfHeight = 12 * scale / 100;
 			}
