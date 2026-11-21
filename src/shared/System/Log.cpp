@@ -60,7 +60,7 @@ namespace Nilesoft
 		if(hFile != INVALID_HANDLE_VALUE)
 			return true;
 
-		hFile = ::CreateFileW(_path.c_str(), GENERIC_WRITE, FILE_SHARE_WRITE,
+		hFile = ::CreateFileW(_path.c_str(), GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE,
 							  nullptr, creation,
 							  FILE_ATTRIBUTE_NORMAL, nullptr);
 
