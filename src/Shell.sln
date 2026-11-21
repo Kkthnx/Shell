@@ -39,6 +39,7 @@ Global
 		{FFFD0DDB-48FB-4681-A3B6-8E787FA98C98}.release|x64.Build.0 = release|x64
 		{FFFD0DDB-48FB-4681-A3B6-8E787FA98C98}.release|x86.ActiveCfg = release|Win32
 		{FFFD0DDB-48FB-4681-A3B6-8E787FA98C98}.release|x86.Build.0 = release|Win32
+		{3E7B5C1A-9D4F-4A62-8B0E-6C2D7F1A5B93}.release|ARM64.ActiveCfg = release|x64
 		{3E7B5C1A-9D4F-4A62-8B0E-6C2D7F1A5B93}.release|x64.ActiveCfg = release|x64
 		{3E7B5C1A-9D4F-4A62-8B0E-6C2D7F1A5B93}.release|x64.Build.0 = release|x64
 		{3E7B5C1A-9D4F-4A62-8B0E-6C2D7F1A5B93}.release|x86.ActiveCfg = release|Win32
