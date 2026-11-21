@@ -40,9 +40,10 @@ namespace Nilesoft
 #define	APP_VERSION				L"1.9.19.1"
 //#define APP_VERSION_FULL		L"1.9 build 19"
 
-constexpr auto APP_EMAIL		= L"support@nilesoft.org";
-constexpr auto APP_WEBSITE		= L"www.nilesoft.org";
-constexpr auto APP_WEBSITELINK	= L"https://nilesoft.org";
+constexpr auto APP_WEBSITE		= L"kkthnx.com";
+constexpr auto APP_WEBSITELINK	= L"https://kkthnx.com/";
+constexpr auto APP_GITHUB		= L"https://github.com/Kkthnx/Shell";
+constexpr auto APP_DONATE		= L"https://ko-fi.com/kkthnx";
 
 #ifdef _WINDLL
 	#define APP_FILENAME		APP_FILENAME_TITLE L".dll"

@@ -47,7 +47,6 @@ BOOL CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam);
 #define ID_RESTART 0x005
 #define ID_WEB 0x006
 #define ID_DONATE 0x007
-#define ID_EMAIL 0x008
 #define ID_GITHUB 0x009
 #define ID_DOCS 0x00d
 
@@ -714,10 +713,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE, _In_ LPWSTR,
         auto tl = btn_restart->Rect.left;
 
         auto btn_web = new UI::Button(L"\uE11F", { tl, tt, btn_h, btn_h }, ID_WEB, main_window, BS_OWNERDRAW, _hfont_icon,  L"Website Ctrl+W");
-       
-        tl += btn_h + offset_2;
-        auto btn_email = new UI::Button(L"\uE115", { tl, tt, btn_h, btn_h }, ID_EMAIL, main_window, BS_OWNERDRAW, _hfont_icon, L"Email Ctrl+E");
-       
+
         tl += btn_h + offset_2;
         auto btn_bug = new UI::Button(L"\uE22B", { tl, tt, btn_h, btn_h }, ID_GITHUB, main_window, BS_OWNERDRAW, _hfont_icon, L"Github Ctrl+G");
 
@@ -726,7 +722,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE, _In_ LPWSTR,
         auto btn_donate = new UI::Button(L"\uE1A8", { tl, tt, btn_h, btn_h }, ID_DONATE, main_window, BS_OWNERDRAW, _hfont_icon, L"Donate Ctrl+D");
 
 
-        main_window->SetColor({ btn_reg, btn_unreg,btn_restart,btn_donate,btn_web,btn_email,btn_bug }, 
+        main_window->SetColor({ btn_reg, btn_unreg,btn_restart,btn_donate,btn_web,btn_bug },
 							  m_theme.text.nor, m_theme.back.nor, m_theme.text.sel, m_theme.back.sel);//0xeeeee0
         main_window->SetColor({ btn_close }, 0xFFFFFF, m_theme.back.nor, m_theme.text.nor, 0x2311E8);//E81123
 
@@ -1050,16 +1046,13 @@ LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
                     SendMessage(hWnd, WM_SYSCOMMAND, SC_MINIMIZE, lParam);
                     break;
                 case ID_WEB:
-					Open(hWnd, APP_WEBSITE);
+					Open(hWnd, APP_WEBSITELINK);
                     break;
                 case ID_DONATE:
-					Open(hWnd, L"https://nilesoft.org/donate");
-                    break;
-                case ID_EMAIL:
-					Open(hWnd, L"mailto:support@nilesoft.org");
+					Open(hWnd, APP_DONATE);
                     break;
                 case ID_GITHUB:
-					Open(hWnd, L"https://github.com/moudey/shell");
+					Open(hWnd, APP_GITHUB);
                     break;
 				case ID_RESTART:
 					Windows::Explorer::Restart();
@@ -1107,9 +1100,6 @@ LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
                             break;
                         case 'W':
                             main_window->SendCommand(ID_WEB);
-                            break;
-                        case 'E':
-                            main_window->SendCommand(ID_EMAIL);
                             break;
                         case 'G':
                             main_window->SendCommand(ID_GITHUB);

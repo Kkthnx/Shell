@@ -9,12 +9,14 @@ Compatible with Windows 7 or later.
 
 [donate]
 If you really love Shell and would like to see it continue to improve.
-https://nilesoft.org/donate
+Ko-fi: https://ko-fi.com/kkthnx
+Buy Me a Coffee: https://buymeacoffee.com/kkthnx
+PayPal: https://www.paypal.com/paypalme/kkthnxtv
+Cash App: https://cash.app/$JERussell20 ($JERussell20)
 
 [support]
-https://nilesoft.org
-https://nilesoft.org/github
-support@nilesoft.org
+https://kkthnx.com/
+https://github.com/Kkthnx/Shell
 
 [DISCLAIMER]
 THE SOFTWARE IS DISTRIBUTED "AS IS". NO WARRANTY OF ANY KIND IS

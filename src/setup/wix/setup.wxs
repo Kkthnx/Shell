@@ -53,8 +53,8 @@
 		<Property Id='MSIRESTARTMANAGERCONTROL' Value='Disable' />
 		<Property Id='DefaultUIFont' Value='WixUI_Font_Normal' />
 		<Property Id='ErrorDialog' Value='ErrorDlg' />
-		<Property Id='ARPURLINFOABOUT' Value='https://nilesoft.org/' />
-		<Property Id='ARPHELPLINK' Value='https://nilesoft.org/docs/' />
+		<Property Id='ARPURLINFOABOUT' Value='https://kkthnx.com/' />
+		<Property Id='ARPHELPLINK' Value='https://github.com/Kkthnx/Shell' />
 		<Property Id='ARPNOMODIFY' Value='1' Secure='yes' />
 		<Property Id='ARPNOREPAIR' Value='1' Secure='yes' />
 		<Property Id='BURNMSIMODIFY' Value='0' Secure='yes' />
