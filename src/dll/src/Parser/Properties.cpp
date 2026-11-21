@@ -884,6 +884,10 @@ namespace Nilesoft
 				{
 					case MENU_TYPE:
 					{
+						// expect_assign() only skips whitespace before '=', so
+						// skip it here too or `type = "file"` fails the quote check.
+						skip();
+						prevCol = l->column;
 						FileSystemObjects fso;
 						if(!parse_property(fso))
 							return false;
@@ -894,6 +898,8 @@ namespace Nilesoft
 					}
 					case MENU_CLSID:
 					{
+						skip();
+						prevCol = l->column;
 						item->properties++;
 						parse_clsid(item);
 						item->has_clsid = true;
