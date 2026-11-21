@@ -24,9 +24,10 @@ jobs:
       BUILD_CONFIGURATION: ${{matrix.configuration}}
       BUILD_PLATFORM: ${{matrix.platform}}
       BIN_PATH: D:\a\Shell\Shell\src\bin
-    # windows-latest now carries Visual Studio 18 without ARM64 tools for the
-    # v143 toolset these projects use. windows-2025 still ships Visual Studio 2022.
-    runs-on: windows-2025
+    # windows-latest and windows-2025 now use the windows-2025-vs2026 image, whose
+    # Visual Studio 18 has no ARM64 tools for the v143 toolset these projects use.
+    # The windows-2022 image is built around Visual Studio 2022.
+    runs-on: windows-2022
 
     steps:
     - uses: actions/checkout@v4
